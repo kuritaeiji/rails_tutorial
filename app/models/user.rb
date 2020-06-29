@@ -1,6 +1,7 @@
 class User < ApplicationRecord
-  attr_accessor :remember_token
+  attr_accessor :remember_token, :activation_token
   before_save { self.email = email.downcase }
+  before_create :create_activation_digest
 
   validates :name, presence: true, length: { maximum: 50 }
   VALID_EMAIL_REGEXP = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
@@ -23,12 +24,23 @@ class User < ApplicationRecord
     update_attribute(:remember_digest, digest)
   end
 
-  def authenticated?(remember_token)
+  def authenticated?(attribute, remember_token)
+    digest = self.send("#{attribute_digest}_digest")
     return false if remember_digest.nil?
-    remember_token == remember_digest
+    remember_token == digest
   end
 
   def forget
     update_attribute(:remember_digest, nil)
   end
+
+  def activate
+    update_attributes(activated: true, activated_at: Time.zone.now)
+  end
+
+  private
+    def create_activation_digest
+      self.activation_token = User.new_token
+      self.activation_digest = User.digest(activation_token)
+    end
 end
